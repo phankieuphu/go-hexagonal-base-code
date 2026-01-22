@@ -3,7 +3,7 @@ package application
 import (
 	"account-service/config"
 	"account-service/internal/adapters/consumer"
-	"account-service/internal/adapters/database"
+	database_provider "account-service/internal/adapters/database/provider"
 	"account-service/internal/adapters/repositories"
 	"account-service/internal/domain/services"
 	"context"
@@ -19,16 +19,16 @@ func AccountApplication(ctx context.Context) {
 	godotenv.Load()
 	config := config.LoadConfig()
 
-	dbProvider, err := database.NewDatabaseProvider(config, ctx)
+	database, err := database_provider.NewMySQLClient(*config)
 	if err != nil {
-		log.Fatalf("failed to init DATABASE provider: %v", err)
+		log.Fatalf("Failed to init database service", err.Error())
 	}
-	dbService := database.NewDatabaseService(ctx, dbProvider, config.Database.AccountTableName)
 
-	entryAccountRepository, err := repositories.NewAccountRepository(dbService, *config)
+	entryAccountRepository := repositories.NewAccountRepository(database)
 	if err != nil {
 		log.Fatalf("failed to init REPOSIORTY provider: %v", err)
 	}
+
 	entryAccountService := services.NewAccountService(*config, entryAccountRepository)
 
 	queueClient, err := consumer.NewSQSClient(*config, ctx)

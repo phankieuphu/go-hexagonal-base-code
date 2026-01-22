@@ -2,7 +2,6 @@ package services
 
 import (
 	"account-service/config"
-	"account-service/internal/adapters/repositories"
 	"account-service/internal/domain/entities"
 	"account-service/internal/domain/ports"
 	"context"
@@ -12,7 +11,7 @@ import (
 
 type AccountService struct {
 	config     config.Config
-	repository repositories.AccountRepository
+	repository ports.AccountRepository
 }
 
 // Save implements ports.AccountService.
@@ -21,14 +20,12 @@ func (e *AccountService) Save(ctx context.Context, input string) {
 	data := entities.Account{
 		ID: uuid.NewString(),
 	}
-	err := e.repository.Save(ctx, data)
-	if err != nil {
 
-	}
+	e.repository.Create(ctx, data)
 
 }
 
-func NewAccountService(cfg config.Config, repository repositories.AccountRepository) ports.AccountService {
+func NewAccountService(cfg config.Config, repository ports.AccountRepository) ports.AccountService {
 	return &AccountService{
 		repository: repository,
 		config:     cfg,

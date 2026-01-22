@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 type Config struct {
 	AWS
@@ -16,7 +19,15 @@ type SQSTopic struct {
 	Account string
 }
 type Database struct {
-	AccountTableName string
+	Host            string
+	Port            int
+	Username        string
+	Password        string
+	Database        string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	Driver          string
 }
 
 func LoadConfig() *Config {
@@ -29,7 +40,7 @@ func LoadConfig() *Config {
 			},
 		},
 		Database: Database{
-			AccountTableName: GetEnv("ACCOUNT_ENTRY_TABLE", "accounting_account_entry"),
+			// AccountTableName: GetEnv("ACCOUNT_ENTRY_TABLE", "accounting_account_entry"),
 		},
 	}
 }

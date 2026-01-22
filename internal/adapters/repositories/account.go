@@ -1,30 +1,35 @@
 package repositories
 
 import (
-	"account-service/config"
+	"account-service/internal/adapters/database/models"
 	"account-service/internal/domain/entities"
 	"account-service/internal/domain/ports"
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"gorm.io/gorm"
 )
 
 type AccountRepository struct {
-	dbService ports.IDatabaseService
-	tableName string
+	db *gorm.DB
 }
 
-func NewAccountRepository(dbService ports.IDatabaseService, internalConfig config.Config) (AccountRepository, error) {
-	return AccountRepository{dbService: dbService, tableName: internalConfig.Database.AccountTableName}, nil
+// Create implements ports.AccountRepository.
+func (a AccountRepository) Create(ctx context.Context, account entities.Account) {
+	models := a.toModels(account)
+	a.db.Save(models)
+	panic("unimplemented")
 }
 
-func (e *AccountRepository) Save(ctx context.Context, entry entities.Account) error {
-	item, err := attributevalue.MarshalMap(entry)
-	if err != nil {
+func (a AccountRepository) toModels(account entities.Account) models.Account {
+	panic("unimplemented")
+}
+
+func (a AccountRepository) toDomain(model models.Account) entities.Account {
+	panic("unimplemented")
+}
+
+func NewAccountRepository(db *gorm.DB) ports.AccountRepository {
+	return AccountRepository{
+		db: db,
 	}
-	e.dbService.Insert(ctx, item)
-	if err != nil {
-		return err
-	}
-	return nil
 }
