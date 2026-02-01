@@ -2,11 +2,9 @@ package services
 
 import (
 	"account-service/config"
-	"account-service/internal/domain/entities"
+	"account-service/internal/domain/entity"
 	"account-service/internal/domain/ports"
 	"context"
-
-	"github.com/google/uuid"
 )
 
 type AccountService struct {
@@ -15,14 +13,12 @@ type AccountService struct {
 }
 
 // Save implements ports.AccountService.
-func (e *AccountService) Save(ctx context.Context, input string) {
-	// 2. Map to command
-	data := entities.Account{
-		ID: uuid.NewString(),
-	}
+func (e *AccountService) Save(ctx context.Context, entity entity.Account) error {
+	// Handle business here:
 
-	e.repository.Create(ctx, data)
+	e.repository.Create(ctx, entity)
 
+	return nil
 }
 
 func NewAccountService(cfg config.Config, repository ports.AccountRepository) ports.AccountService {

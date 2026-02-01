@@ -4,7 +4,7 @@ import (
 	"account-service/config"
 	"account-service/internal/adapters/consumer"
 	database_provider "account-service/internal/adapters/database/provider"
-	"account-service/internal/adapters/repositories"
+	"account-service/internal/adapters/repository"
 	"account-service/internal/domain/services"
 	"context"
 	"log"
@@ -24,9 +24,9 @@ func AccountApplication(ctx context.Context) {
 		log.Fatalf("Failed to init database service", err.Error())
 	}
 
-	entryAccountRepository := repositories.NewAccountRepository(database)
+	entryAccountRepository := repository.NewAccountRepository(database)
 	if err != nil {
-		log.Fatalf("failed to init REPOSIORTY provider: %v", err)
+		log.Fatalf("failed to init REPOSITORY provider: %v", err)
 	}
 
 	entryAccountService := services.NewAccountService(*config, entryAccountRepository)
@@ -44,6 +44,6 @@ func AccountApplication(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("failed to init QUEUE consumer: %v", err)
 	}
-	log.Println("Accont Application Started")
+	log.Println("Account Application Started")
 	accountingConsumer.Start(ctx)
 }

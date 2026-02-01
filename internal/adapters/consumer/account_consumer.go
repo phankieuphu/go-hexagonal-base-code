@@ -4,7 +4,6 @@ import (
 	internal_config "account-service/config"
 	"account-service/internal/domain/ports"
 	"context"
-	"encoding/json"
 	"log"
 	"time"
 
@@ -69,12 +68,12 @@ func (a *AccountConsumer) ProcessMessage(
 	log.Println("📩 raw SQS message received")
 
 	// 1. Unwrap SNS envelope
-	var snsMsg ports.SNSMessage
-	if err := json.Unmarshal([]byte(*msg.Body), &snsMsg); err != nil {
-		return err
-	}
 
-	a.entryAccountService.Save(ctx, snsMsg.Message)
+	//if err := json.Unmarshal([]byte(*msg.Body), &snsMsg); err != nil {
+	//	return err
+	//}
+	//
+	//a.entryAccountService.Save(ctx, snsMsg.Message)
 
 	// 5. Delete message after success
 	return a.DeleteMessage(ctx, *msg.ReceiptHandle)
