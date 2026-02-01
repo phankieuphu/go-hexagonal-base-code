@@ -1,8 +1,8 @@
-package repositories
+package repository
 
 import (
 	"account-service/internal/adapters/database/models"
-	"account-service/internal/domain/entities"
+	"account-service/internal/domain/entity"
 	"account-service/internal/domain/ports"
 	"context"
 
@@ -14,17 +14,17 @@ type AccountRepository struct {
 }
 
 // Create implements ports.AccountRepository.
-func (a AccountRepository) Create(ctx context.Context, account entities.Account) {
+func (a AccountRepository) Create(ctx context.Context, account entity.Account) {
 	models := a.toModels(account)
 	a.db.Save(models)
 	panic("unimplemented")
 }
 
-func (a AccountRepository) toModels(account entities.Account) models.Account {
+func (a AccountRepository) toModels(account entity.Account) models.Account {
 	panic("unimplemented")
 }
 
-func (a AccountRepository) toDomain(model models.Account) entities.Account {
+func (a AccountRepository) toDomain(model models.Account) entity.Account {
 	panic("unimplemented")
 }
 
