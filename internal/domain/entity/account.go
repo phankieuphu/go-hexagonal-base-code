@@ -1,4 +1,4 @@
-package entities
+package entity
 
 type Account struct {
 	ID       string `json:"id"`
