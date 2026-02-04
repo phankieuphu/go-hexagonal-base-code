@@ -21,7 +21,7 @@ func AccountApplication(ctx context.Context) {
 
 	database, err := database_provider.NewMySQLClient(*config)
 	if err != nil {
-		log.Fatalf("Failed to init database service", err.Error())
+		log.Fatalf("Failed to init database service %s", err.Error())
 	}
 
 	entryAccountRepository := repository.NewAccountRepository(database)
@@ -40,10 +40,11 @@ func AccountApplication(ctx context.Context) {
 		log.Fatalf("failed to init QUEUE provider: %v", err)
 	}
 	queuURL := config.SqsTopic.Account
-	accountingConsumer, err := consumer.NewAccountConsumer(ctx, queueProvider, config, entryAccountService, queuURL)
+	accountConsumer, err := consumer.NewAccountConsumer(ctx, queueProvider, config, entryAccountService, queuURL)
 	if err != nil {
 		log.Fatalf("failed to init QUEUE consumer: %v", err)
 	}
-	log.Println("Account Application Started")
-	accountingConsumer.Start(ctx)
+  // go routines here
+	log.Println("Accont Application Started")
+	accountConsumer.Start(ctx)
 }

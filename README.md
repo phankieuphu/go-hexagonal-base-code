@@ -1,225 +1,151 @@
-# Hexagonal Architecture – Database-agnostic Design
+# README
 
-This project follows **Hexagonal Architecture (Ports & Adapters)** to ensure that **business logic is independent of database, framework, and transport layer**.
+## Overview
 
-The goal is simple:
-
-> **Change database or framework without touching business logic.**
+Base code to create new another repository
 
 ---
 
-## 🧠 Core Principles
+## Repository Purpose
 
-* **Domain is the center** (business rules)
-* **Infrastructure is replaceable**
-* **Dependencies point inward**
-* **Conversions happen at boundaries**
-
----
-
-## 📂 Project Structure
-
-```text
-.
-├── domain
-│   └── user
-│       ├── entity.go          # Business entities (pure domain)
-│       ├── repository.go      # Port (interface)
-│       └── service.go         # Use cases / business logic
-│
-├── adapter
-│   └── http
-│       ├── handler.go         # HTTP handlers
-│       ├── request.go         # Request DTOs (JSON parsing)
-│       └── response.go        # Response DTOs
-│
-├── infrastructure
-│   └── mysql
-│       ├── user_model.go      # Database model (GORM)
-│       └── user_repository.go # Adapter (implements domain port)
-│
-├── main.go                    # Dependency wiring
-└── README.md
-```
+* Clean and normalize data from multiple sources
+* Prepare data for banking reports
+* Support extensible data ingestion (DB, Queue, etc.)
+* Follow layered / hexagonal architecture
 
 ---
 
-## 🧩 Layer Responsibilities
+## Setup Guide
 
-### 1️⃣ Domain Layer (`domain/`)
+### Local Environment
 
-**Purpose:** Business logic and rules
-**Knows nothing about:** HTTP, JSON, DB, ORM, frameworks
+1. Create environment variables:
 
-#### Entity
-
-```go
-type User struct {
-	ID    uint64
-	Email string
-	Name  string
-}
+```bash
+cp .env.example .env
 ```
 
-* Represents business concepts
-* No tags, no persistence concerns
+2. Update your local configuration in `.env`
 
-#### Repository (Port)
+3. Run the initialization script:
 
-```go
-type Repository interface {
-	Create(ctx context.Context, u *User) error
-	GetByID(ctx context.Context, id uint64) (*User, error)
-	Update(ctx context.Context, u *User) error
-	Delete(ctx context.Context, id uint64) error
-}
-```
-
-* Defines **what the domain needs**
-* Not **how it is implemented**
-
-#### Service (Use Case)
-
-```go
-type Service struct {
-	repo Repository
-}
-```
-
-* Orchestrates business rules
-* Calls repository through interface
-* Never changes when DB changes
+```bash
+sh init.sh
+``` 
 
 ---
 
-### 2️⃣ Adapter Layer (`adapter/http/`)
+### Docker Setup
 
-**Purpose:** Handle I/O (HTTP, JSON)
-
-#### Request DTO
-
-```go
-type CreateUserRequest struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
-}
+```bash
+docker compose up -d
 ```
-
-* Used only for parsing input
-* Not reused in domain or infrastructure
-
-#### Handler
-
-* Converts **Request → Domain Entity**
-* Calls domain service
-* Converts **Domain Entity → Response**
 
 ---
 
-### 3️⃣ Infrastructure Layer (`infrastructure/`)
+## Initializing a New Data Flow
 
-**Purpose:** Technical implementation details (DB, ORM, external services)
+### 1. Define Data Sources
 
-#### Database Model
+#### From Database
 
-```go
-type UserModel struct {
-	ID    uint64 `gorm:"primaryKey"`
-	Email string `gorm:"uniqueIndex"`
-	Name  string
-}
-```
+* Implement repository adapters
 
-* Exists only for persistence
-* Can change freely with database decisions
+#### From Queue
 
-#### Repository Adapter
+* Location: `internal/adapters/consumer`
+* Steps:
 
-* Implements domain repository interface
-* Converts **Entity ⇄ Model**
-* Uses GORM / SQL / any DB driver
-
-This is the **only place** where entities interact with models.
+   * Add a new consumer: `{name}Consumer.go`
+   * Define input DTOs in the `/dto` folder
 
 ---
 
-## 🔄 Data Flow
+### 2. Define a New Service
 
-### Incoming Request
+1. Define service interface:
+
+   * File: `internal/domain/ports/services.go`
+
+2. Implement service logic:
+
+   * Folder: `internal/domain/services`
+
+3. Inputs & outputs:
+
+   * Use DTOs from `internal/adapters/http` if the service is HTTP-based
+
+---
+
+### 3. Define Outbound Adapters (Repositories)
+
+For database or external storage operations:
+
+1. Define repository interface:
+
+   * `internal/domain/ports/repositories.go`
+
+2. Create adapter struct:
+
+   * `internal/adapters/repositories`
+
+3. Implement repository logic
+
+---
+
+## Service Architecture Layers
 
 ```
-HTTP JSON
-   ↓
-Request DTO
-   ↓
-HTTP Handler
-   ↓
-Domain Entity
-   ↓
+Config
+  |
+DB Provider
+  |
+Repository (Storage)
+  |
 Service (Use Case)
-   ↓
-Repository Interface
-   ↓
-Repository Adapter
-   ↓
-Database Model
-   ↓
-Database
 ```
 
-### Outgoing Response (reverse flow)
+
 
 ---
 
-## 🔁 Where Conversions Happen
 
-| Conversion         | Location                |
-| ------------------ | ----------------------- |
-| JSON → Request DTO | HTTP adapter            |
-| Request → Entity   | HTTP handler / use case |
-| Entity → Model     | Repository adapter      |
-| Model → Entity     | Repository adapter      |
-| Entity → Response  | HTTP handler            |
 
-**Rule:**
-👉 Conversions happen **only at boundaries**, never inside the domain.
+## Database Configuration
+
+* Define database models in:
+
+```
+internal/adapters/database/models
+```
+---
+* **Note**: if your table want to define is SQL please update file **init.sql** your SQL script
+
+## Testing
+
+* Write unit tests for services and repositories
+* Mock external dependencies
+* Run tests using standard Go **tooling**
+* Run `golangci-lint run` for ensure correct syntax
+---
+
+## Deployment
+
+* Docker-based deployment
+* Environment-driven configuration
+* CI/CD friendly
 
 ---
 
-## 🔒 What the Domain Must Never Know
+## Contribution Guidelines
 
-* GORM
-* SQL
-* JSON tags
-* HTTP status codes
-* Database schema
-* Frameworks
-
-Violating this breaks hexagonal architecture.
+* Write tests for all new features
+* Follow existing code structure
+* Code reviews are mandatory
 
 ---
 
-## 🔄 Switching Database
+## Contact
 
-To change database (e.g. MySQL → PostgreSQL):
-
-1. Create a new adapter:
-
-   ```
-   infrastructure/postgres/
-   ```
-2. Implement the same repository interface
-3. Change wiring in `main.go`
-
-✅ Domain code stays untouched
-✅ Business logic remains stable
-
----
-
-## ✅ Why This Design Works
-
-* Easy to test business logic with mocks
-* Safe to refactor infrastructure
-* Clear ownership of responsibilities
-* Scales with team size
-* Proven, boring, reliable
+* Repository owner / admin
+* Project team members
