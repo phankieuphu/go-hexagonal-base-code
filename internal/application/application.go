@@ -2,12 +2,16 @@ package application
 
 import (
 	"account-service/config"
+	"account-service/internal/adapters/cache"
 	"account-service/internal/adapters/consumer"
 	database_provider "account-service/internal/adapters/database/provider"
+	"account-service/internal/adapters/kafka"
 	"account-service/internal/adapters/repository"
 	"account-service/internal/domain/services"
 	"context"
 	"log"
+
+	ginhttp "account-service/internal/adapters/http"
 
 	"github.com/joho/godotenv"
 )
@@ -17,34 +21,62 @@ type Application struct {
 
 func AccountApplication(ctx context.Context) {
 	godotenv.Load()
-	config := config.LoadConfig()
+	cfg := config.LoadConfig()
 
-	database, err := database_provider.NewMySQLClient(*config)
+	// database
+	database, err := database_provider.NewMySQLClient(*cfg)
 	if err != nil {
-		log.Fatalf("Failed to init database service %s", err.Error())
+		log.Fatalf("failed to init database: %v", err)
 	}
 
+	// repository & service
 	entryAccountRepository := repository.NewAccountRepository(database)
-	if err != nil {
-		log.Fatalf("failed to init REPOSITORY provider: %v", err)
-	}
+	entryAccountService := services.NewAccountService(*cfg, entryAccountRepository)
 
-	entryAccountService := services.NewAccountService(*config, entryAccountRepository)
-
-	queueClient, err := consumer.NewSQSClient(*config, ctx)
+	// SQS consumer
+	queueClient, err := consumer.NewSQSClient(*cfg, ctx)
 	if err != nil {
-		log.Fatalf("failed to init QUEUE client: %v", err)
+		log.Fatalf("failed to init SQS client: %v", err)
 	}
 	queueProvider, err := consumer.NewQueueProvider(*queueClient)
 	if err != nil {
-		log.Fatalf("failed to init QUEUE provider: %v", err)
+		log.Fatalf("failed to init queue provider: %v", err)
 	}
-	queuURL := config.SqsTopic.Account
-	accountConsumer, err := consumer.NewAccountConsumer(ctx, queueProvider, config, entryAccountService, queuURL)
+	accountConsumer, err := consumer.NewAccountConsumer(ctx, queueProvider, cfg, entryAccountService, cfg.SqsTopic.Account)
 	if err != nil {
-		log.Fatalf("failed to init QUEUE consumer: %v", err)
+		log.Fatalf("failed to init account consumer: %v", err)
 	}
-  // go routines here
-	log.Println("Accont Application Started")
-	accountConsumer.Start(ctx)
+
+	// Redis cache
+	redisCache, err := cache.NewRedisCache(cfg.Redis)
+	if err != nil {
+		log.Fatalf("failed to init Redis: %v", err)
+	}
+	_ = redisCache
+
+	// Kafka producer
+	kafkaProducer, err := kafka.NewProducer(cfg.Kafka)
+	if err != nil {
+		log.Fatalf("failed to init Kafka producer: %v", err)
+	}
+	defer kafkaProducer.Close()
+
+	// Kafka consumer
+	kafkaConsumer, err := kafka.NewConsumer(cfg.Kafka, func(ctx context.Context, key, value []byte) error {
+		log.Printf("kafka message received key=%s value=%s", key, value)
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("failed to init Kafka consumer: %v", err)
+	}
+	defer kafkaConsumer.Close()
+
+	// HTTP server (gin)
+	httpServer := ginhttp.NewServer(cfg.API, entryAccountService)
+
+	log.Println("Account Application Started")
+
+	go accountConsumer.Start(ctx)
+	go kafkaConsumer.Start(ctx)
+	httpServer.Start()
 }
