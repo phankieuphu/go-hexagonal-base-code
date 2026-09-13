@@ -3,8 +3,8 @@ package consumer
 import (
 	internal_config "account-service/config"
 	"account-service/internal/domain/ports"
+	"account-service/pkg/logger"
 	"context"
-	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -32,7 +32,7 @@ func (a *AccountConsumer) Start(ctx context.Context) {
 
 	queueURL := a.queueURL
 
-	log.Println("SQS consumer started...")
+	logger.Info("SQS consumer started")
 
 	for {
 		resp, err := a.provider.client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
@@ -42,7 +42,7 @@ func (a *AccountConsumer) Start(ctx context.Context) {
 			VisibilityTimeout:   30,
 		})
 		if err != nil {
-			log.Println("receive message error:", err)
+			logger.Error("receive message error", "error", err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -54,7 +54,7 @@ func (a *AccountConsumer) Start(ctx context.Context) {
 		for _, msg := range resp.Messages {
 			err := a.ProcessMessage(ctx, msg)
 			if err != nil {
-				log.Println("processing failed:", err)
+				logger.Error("processing failed", "error", err)
 				continue
 			}
 		}
@@ -65,7 +65,7 @@ func (a *AccountConsumer) ProcessMessage(
 	ctx context.Context,
 	msg types.Message,
 ) error {
-	log.Println("📩 raw SQS message received")
+	logger.Info("raw SQS message received")
 
 	// 1. Unwrap SNS envelope
 
@@ -90,7 +90,7 @@ func (a *AccountConsumer) DeleteMessage(
 	})
 
 	if err == nil {
-		log.Println("message deleted")
+		logger.Info("message deleted")
 	}
 
 	return err

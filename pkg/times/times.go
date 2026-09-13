@@ -1,6 +1,7 @@
 package times
 
 import (
+	"account-service/pkg/logger"
 	"fmt"
 	"strconv"
 	"time"
@@ -13,7 +14,7 @@ const (
 func ConvertFormat(input string) string {
 	t, err := time.Parse(time.RFC3339Nano, input)
 	if err != nil {
-		fmt.Println("Error:", err)
+		logger.Error("failed to parse time", "input", input, "error", err)
 		return ""
 	}
 

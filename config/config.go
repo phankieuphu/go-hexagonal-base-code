@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type Config struct {
 	API
 	Kafka
 	Redis
+	Logger
 }
 
 type AWS struct {
@@ -74,7 +76,7 @@ func LoadConfig() *Config {
 			WriteTimeout: time.Duration(getEnvInt("API_WRITE_TIMEOUT_SEC", 30)) * time.Second,
 		},
 		Kafka: Kafka{
-			Brokers:       []string{GetEnv("KAFKA_BROKERS", "localhost:9092")},
+			Brokers:       getEnvStringSlice("KAFKA_BROKERS", []string{"localhost:9092"}),
 			ProducerTopic: GetEnv("KAFKA_PRODUCER_TOPIC", "account.events"),
 			ConsumerTopic: GetEnv("KAFKA_CONSUMER_TOPIC", "account.events"),
 			ConsumerGroup: GetEnv("KAFKA_CONSUMER_GROUP", "account-service"),
@@ -85,6 +87,7 @@ func LoadConfig() *Config {
 			Password: GetEnv("REDIS_PASSWORD", ""),
 			DB:       getEnvInt("REDIS_DB", 0),
 		},
+		Logger: loadLoggerConfig(),
 	}
 }
 
@@ -106,4 +109,44 @@ func getEnvInt(key string, defaultValue int) int {
 		return defaultValue
 	}
 	return n
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValue
+	}
+	b, err := strconv.ParseBool(val)
+	if err != nil {
+		return defaultValue
+	}
+	return b
+}
+
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValue
+	}
+	d, err := time.ParseDuration(val)
+	if err != nil {
+		return defaultValue
+	}
+	return d
+}
+
+func getEnvStringSlice(key string, defaultValue []string) []string {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValue
+	}
+	parts := strings.Split(val, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }

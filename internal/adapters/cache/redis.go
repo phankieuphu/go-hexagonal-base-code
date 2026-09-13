@@ -2,8 +2,8 @@ package cache
 
 import (
 	"account-service/config"
+	"account-service/pkg/logger"
 	"context"
-	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -24,7 +24,7 @@ func NewRedisCache(cfg config.Redis) (*RedisCache, error) {
 		return nil, err
 	}
 
-	log.Printf("Redis connected at %s", cfg.Addr())
+	logger.Info("Redis connected", "addr", cfg.Addr())
 	return &RedisCache{client: client}, nil
 }
 
