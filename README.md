@@ -15,6 +15,51 @@ Base code to create new another repository
 
 ---
 
+## Layered Architecture
+
+Request/message flow follows the hexagonal layering the root README documents (Config → Provider → Repository → Service), with HTTP and messaging as separate inbound adapters converging on the same domain service:
+
+```mermaid
+flowchart TB
+    subgraph Inbound Adapters
+        HTTP[HTTP Handler<br/>gin]
+        KAFKA[Kafka Consumer]
+    end
+
+    DTO[DTO<br/>request/response shape]
+    ENTITY[Domain Entity<br/>entity.Account]
+    SERVICE[Domain Service<br/>ports.AccountService]
+    REPO[Repository<br/>ports.AccountRepository]
+    MODEL[DB Model<br/>models.Account]
+    DB[(Database<br/>GORM / Postgres driver)]
+    CACHE[(Redis<br/>ports.Cache)]
+
+    HTTP -.bypassed today.-> DTO
+    DTO --> ENTITY
+    HTTP --> ENTITY
+    KAFKA --> ENTITY
+    ENTITY --> SERVICE
+    SERVICE --> REPO
+    REPO --> MODEL
+    MODEL --> DB
+    SERVICE -.wired at startup, unused.-> CACHE
+```
+
+| Layer            | File(s)                                                                                                                                            | Responsibility                                                 | Status                                                                                                                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP             | [`http/server.go`](../internal/adapters/http/server.go), [`http/handler/account-handler.go`](../internal/adapters/http/handler/account-handler.go) | gin engine, route registration, request binding                | Functional                                                                                                                                                                                                                                         |
+| DTO              | [`http/dto/account-dto.go`](../internal/adapters/http/dto/account-dto.go)                                                                          | Request/response shape, decoupled from the domain entity       | **Empty file** — handler binds JSON straight to `entity.Account`, so the DTO boundary the base README calls for doesn't exist yet                                                                                                                  |
+| Entity           | [`domain/entity/account.go`](../internal/domain/entity/account.go)                                                                                 | Core domain model: `{ID, Username}`                            | Functional (minimal)                                                                                                                                                                                                                               |
+| Service          | [`domain/services/account-service.go`](../internal/domain/services/account-service.go)                                                             | Business logic behind `ports.AccountService`; `Save()`         | `Save` calls `repository.Create` and unconditionally returns `nil` — a create failure can't reach the HTTP layer, and `ports.AccountRepository.Create` has no error return at all, so the interface itself needs widening before this can be fixed |
+| Repository       | [`adapters/repository/account-repository.go`](../internal/adapters/repository/account-repository.go)                                               | Implements `ports.AccountRepository`; entity ⇄ model mapping   | `Create`, `toModels`, `toDomain` all `panic("unimplemented")` — not functional                                                                                                                                                                     |
+| DB Model         | [`database/models/account_models.go`](../internal/adapters/database/models/account_models.go)                                                      | GORM struct, maps to table `account`                           | Functional (minimal)                                                                                                                                                                                                                               |
+| DB Provider      | [`database/provider/postgres.go`](../internal/adapters/database/provider/postgres.go)                                                              | Opens the DB connection, pool sizing                           | Named `postgres.go` and exported as `NewMySQLClient`, but opens `gorm.io/driver/mysql` — while `docker-compose.yml` provisions Postgres. Pick one driver and rename to match before wiring the repository up.                                      |
+| Cache            | [`adapters/cache/redis.go`](../internal/adapters/cache/redis.go)                                                                                   | Implements `ports.Cache` (get/set/delete with TTL)             | Connected at startup in `application.go` then discarded (`_ = redisCache`) — not used by `AccountService`                                                                                                                                          |
+| Composition root | [`internal/application/application.go`](../internal/application/application.go)                                                                    | Wires config → adapters → service → servers, starts everything | Functional                                                                                                                                                                                                                                         |
+| Entrypoint       | [`cmd/server/main.go`](../cmd/server/main.go)                                                                                                      | Process entrypoint                                             | Functional                                                                                                                                                                                                                                         |
+
+---
+
 ## Setup Guide
 
 ### Local Environment
