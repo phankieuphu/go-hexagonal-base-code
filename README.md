@@ -19,19 +19,21 @@ Base code to create new another repository
 
 ### Local Environment
 
-1. Create environment variables:
+Create environment variables:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Update your local configuration in `.env`
+Update your local configuration in `.env`
 
-3. Run the initialization script:
+Run the initialization script:
+
+---
 
 ```bash
 sh init.sh
-``` 
+```
 
 ---
 
@@ -56,8 +58,8 @@ docker compose up -d
 * Location: `internal/adapters/consumer`
 * Steps:
 
-   * Add a new consumer: `{name}Consumer.go`
-   * Define input DTOs in the `/dto` folder
+* Add a new consumer: `{name}Consumer.go`
+* Define input DTOs in the `/dto` folder
 
 ---
 
@@ -95,7 +97,7 @@ For database or external storage operations:
 
 ## Service Architecture Layers
 
-```
+```go
 Config
   |
 DB Provider
@@ -105,21 +107,39 @@ Repository (Storage)
 Service (Use Case)
 ```
 
-
-
 ---
-
-
 
 ## Database Configuration
 
 * Define database models in:
 
-```
+```go
 internal/adapters/database/models
 ```
+
 ---
+
 * **Note**: if your table want to define is SQL please update file **init.sql** your SQL script
+
+---
+
+## Kafka Topic name
+
+Pattern:
+
+```go
+<domain>.<entity>.<event>.<version>
+```
+
+Rules:
+
+* all lowercase
+* use `.` to separate levels, `-` inside a word (never mix `.` and `_`, it breaks Kafka JMX metric names)
+* event name is past tense (it is a fact that already happened)
+* always add `v1` so you can introduce a breaking schema later
+* the first part = the owning service's domain. Only that service may produce to it.
+
+---
 
 ## Testing
 
@@ -127,6 +147,7 @@ internal/adapters/database/models
 * Mock external dependencies
 * Run tests using standard Go **tooling**
 * Run `golangci-lint run` for ensure correct syntax
+
 ---
 
 ## Deployment
