@@ -8,8 +8,8 @@ import (
 	"account-service/internal/adapters/kafka"
 	"account-service/internal/adapters/repository"
 	"account-service/internal/domain/services"
+	"account-service/pkg/logger"
 	"context"
-	"log"
 
 	ginhttp "account-service/internal/adapters/http"
 
@@ -23,10 +23,16 @@ func AccountApplication(ctx context.Context) {
 	godotenv.Load()
 	cfg := config.LoadConfig()
 
+	logger.Init(logger.Options{
+		Level:     cfg.Logger.Level,
+		Format:    logger.Format(cfg.Logger.Format),
+		AddSource: cfg.Logger.AddSource,
+	})
+
 	// database
 	database, err := database_provider.NewMySQLClient(*cfg)
 	if err != nil {
-		log.Fatalf("failed to init database: %v", err)
+		logger.Fatal("failed to init database", "error", err)
 	}
 
 	// repository & service
@@ -36,45 +42,45 @@ func AccountApplication(ctx context.Context) {
 	// SQS consumer
 	queueClient, err := consumer.NewSQSClient(*cfg, ctx)
 	if err != nil {
-		log.Fatalf("failed to init SQS client: %v", err)
+		logger.Fatal("failed to init SQS client", "error", err)
 	}
 	queueProvider, err := consumer.NewQueueProvider(*queueClient)
 	if err != nil {
-		log.Fatalf("failed to init queue provider: %v", err)
+		logger.Fatal("failed to init queue provider", "error", err)
 	}
 	accountConsumer, err := consumer.NewAccountConsumer(ctx, queueProvider, cfg, entryAccountService, cfg.SqsTopic.Account)
 	if err != nil {
-		log.Fatalf("failed to init account consumer: %v", err)
+		logger.Fatal("failed to init account consumer", "error", err)
 	}
 
 	// Redis cache
 	redisCache, err := cache.NewRedisCache(cfg.Redis)
 	if err != nil {
-		log.Fatalf("failed to init Redis: %v", err)
+		logger.Fatal("failed to init Redis", "error", err)
 	}
 	_ = redisCache
 
 	// Kafka producer
 	kafkaProducer, err := kafka.NewProducer(cfg.Kafka)
 	if err != nil {
-		log.Fatalf("failed to init Kafka producer: %v", err)
+		logger.Fatal("failed to init Kafka producer", "error", err)
 	}
 	defer kafkaProducer.Close()
 
 	// Kafka consumer
 	kafkaConsumer, err := kafka.NewConsumer(cfg.Kafka, func(ctx context.Context, key, value []byte) error {
-		log.Printf("kafka message received key=%s value=%s", key, value)
+		logger.Info("kafka message received", "key", string(key), "value", string(value))
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("failed to init Kafka consumer: %v", err)
+		logger.Fatal("failed to init Kafka consumer", "error", err)
 	}
 	defer kafkaConsumer.Close()
 
 	// HTTP server (gin)
 	httpServer := ginhttp.NewServer(cfg.API, entryAccountService)
 
-	log.Println("Account Application Started")
+	logger.Info("Account Application Started")
 
 	go accountConsumer.Start(ctx)
 	go kafkaConsumer.Start(ctx)
