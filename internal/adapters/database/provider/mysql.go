@@ -3,7 +3,6 @@ package database_provider
 import (
 	"account-service/config"
 	"fmt"
-	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -20,7 +19,7 @@ func NewMySQLClient(cfg config.Config) (*gorm.DB, error) {
 		dbCfg.Database,
 	)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // important for performance
+		PrepareStmt: true, // cache prepared sql statements
 	})
 	if err != nil {
 		return nil, err
@@ -31,9 +30,9 @@ func NewMySQLClient(cfg config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetMaxOpenConns(dbCfg.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(dbCfg.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(dbCfg.ConnMaxLifetime)
 
 	return db, nil
 }

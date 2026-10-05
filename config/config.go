@@ -44,8 +44,12 @@ type API struct {
 }
 
 type Kafka struct {
-	Brokers       []string
+	Brokers []string
+	// ProducerTopic is where this service publishes Account events for other
+	// services to consume.
 	ProducerTopic string
+	// ConsumerTopic is another service's event stream. Keep it different from
+	// ProducerTopic or this consumer group would replay its own output.
 	ConsumerTopic string
 	ConsumerGroup string
 }
@@ -69,7 +73,17 @@ func LoadConfig() *Config {
 				Account: GetEnv("ACCOUNTING_SQS", ""),
 			},
 		},
-		Database: Database{},
+		Database: Database{
+			Host:            GetEnv("DB_HOST", "localhost"),
+			Port:            getEnvInt("DB_PORT", 3306),
+			Username:        GetEnv("DB_USERNAME", "app"),
+			Password:        GetEnv("DB_PASSWORD", ""),
+			Database:        GetEnv("DB_NAME", "application"),
+			MaxOpenConns:    getEnvInt("DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns:    getEnvInt("DB_MAX_IDLE_CONNS", 10),
+			ConnMaxLifetime: time.Duration(getEnvInt("DB_CONN_MAX_LIFETIME_SEC", 1800)) * time.Second,
+			Driver:          GetEnv("DB_DRIVER", "mysql"),
+		},
 		API: API{
 			Port:         GetEnv("API_PORT", "8080"),
 			ReadTimeout:  time.Duration(getEnvInt("API_READ_TIMEOUT_SEC", 30)) * time.Second,
@@ -78,7 +92,7 @@ func LoadConfig() *Config {
 		Kafka: Kafka{
 			Brokers:       getEnvStringSlice("KAFKA_BROKERS", []string{"localhost:9092"}),
 			ProducerTopic: GetEnv("KAFKA_PRODUCER_TOPIC", "account.events"),
-			ConsumerTopic: GetEnv("KAFKA_CONSUMER_TOPIC", "account.events"),
+			ConsumerTopic: GetEnv("KAFKA_CONSUMER_TOPIC", "identity.user-events"),
 			ConsumerGroup: GetEnv("KAFKA_CONSUMER_GROUP", "account-service"),
 		},
 		Redis: Redis{

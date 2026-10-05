@@ -3,10 +3,16 @@ package main
 import (
 	"account-service/internal/application"
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	ctx := context.Background()
-	application.AccountApplication(ctx)
+	// Cancelled on SIGINT (Ctrl+C) or SIGTERM (docker stop / k8s pod
+	// termination), which triggers the application's graceful shutdown.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
+	application.AccountApplication(ctx)
 }

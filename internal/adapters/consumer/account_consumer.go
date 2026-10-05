@@ -28,13 +28,18 @@ func NewAccountConsumer(ctx context.Context, provider QueueProvider, cfg *intern
 
 }
 
+// Start long-polls the queue until ctx is cancelled. A message already
+// received is processed to completion before Start returns.
 func (a *AccountConsumer) Start(ctx context.Context) {
-
 	queueURL := a.queueURL
+	if queueURL == "" {
+		logger.Warn("SQS queue URL not configured, account consumer disabled")
+		return
+	}
 
-	logger.Info("SQS consumer started")
+	logger.Info("SQS consumer started", "queue", queueURL)
 
-	for {
+	for ctx.Err() == nil {
 		resp, err := a.provider.client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
 			QueueUrl:            &queueURL,
 			MaxNumberOfMessages: 5,
@@ -42,23 +47,27 @@ func (a *AccountConsumer) Start(ctx context.Context) {
 			VisibilityTimeout:   30,
 		})
 		if err != nil {
+			if ctx.Err() != nil {
+				break
+			}
 			logger.Error("receive message error", "error", err)
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		if len(resp.Messages) == 0 {
+			select {
+			case <-ctx.Done():
+			case <-time.After(2 * time.Second):
+			}
 			continue
 		}
 
 		for _, msg := range resp.Messages {
-			err := a.ProcessMessage(ctx, msg)
-			if err != nil {
+			// Detach from ctx so a shutdown mid-batch doesn't abort the
+			// delete of a message that was already processed.
+			if err := a.ProcessMessage(context.WithoutCancel(ctx), msg); err != nil {
 				logger.Error("processing failed", "error", err)
-				continue
 			}
 		}
 	}
+
+	logger.Info("SQS consumer stopped")
 }
 
 func (a *AccountConsumer) ProcessMessage(
